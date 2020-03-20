@@ -1,0 +1,247 @@
+-------- Variáveis Globais --------
+COUNT_CARROS = 2
+COUNT_FAIXAS = COUNT_CARROS
+TAMANHO_PISTA = 10
+VELOCIDADE_MAXIMA = 2
+--OBSTACULOS = <>
+--11,3 
+OBSTACULOS = <(6,2),(9,1)>
+--20,10 
+--OBSTACULOS = <(6,3),(8,2),(10,1),(14,3),(16,2),(18,1)>
+-------- / Variáveis Globais --------
+
+-------- Canais --------
+channel acelerar, freiar, manter, ganhou : {1..COUNT_CARROS}
+-- (ID,VELOCIDADE,POSICAO,FAIXA)
+channel andar : {1..COUNT_CARROS}.{0..VELOCIDADE_MAXIMA}.{1..TAMANHO_PISTA+VELOCIDADE_MAXIMA}.{1..COUNT_FAIXAS}
+channel atualizar : {0..COUNT_CARROS}.{0..VELOCIDADE_MAXIMA}.{1..COUNT_FAIXAS}.{1..TAMANHO_PISTA}
+channel consultar : {1..COUNT_FAIXAS}.{0..TAMANHO_PISTA+VELOCIDADE_MAXIMA}.{0..COUNT_CARROS}
+channel mudarfaixa : {1..COUNT_CARROS}.{1..COUNT_FAIXAS}
+channel iniciar, teste
+-------- / Canais --------
+
+-------- Getters Carro --------
+getId((ID,VELOCIDADE,FAIXA,POSICAO)) = ID
+getFaixa((ID,VELOCIDADE,FAIXA,POSICAO)) = FAIXA
+getPosicao((ID,VELOCIDADE,FAIXA,POSICAO)) = POSICAO
+getVelocidade((ID,VELOCIDADE,FAIXA,POSICAO)) = VELOCIDADE
+getCarro(CARROS,id) = 
+	if(getId(head(CARROS)) == id) then
+		head(CARROS)
+	else
+		getCarro(tail(CARROS),id)
+getIdCarros(FAIXA,POSICAO,CARROS) = 
+	if(CARROS==<>) then
+		0
+	else if(getFaixa(head(CARROS)) == FAIXA and getPosicao(head(CARROS)) == POSICAO) then
+		getId(head(CARROS))
+	else
+		getIdCarros(FAIXA,POSICAO,tail(CARROS))
+
+getVelocidadeCarros(FAIXA,POSICAO,CARROS) = 
+	if(CARROS==<>) then
+		0
+	else if(getFaixa(head(CARROS)) == FAIXA and getPosicao(head(CARROS)) == POSICAO) then
+		getVelocidade(head(CARROS))
+	else
+		getVelocidadeCarros(FAIXA,POSICAO,tail(CARROS))
+-------- / Getters Carro --------
+
+-------- Getters Carro --------
+getPosicaoObstaculo((POSICAO,FAIXA)) = POSICAO
+getFaixaObstaculo((POSICAO,FAIXA)) = FAIXA
+existeObstaculo(POSICAOATUAL,POSICAOPREVENDO,FAIXA,OBSTACULOS) = 
+		if(OBSTACULOS == <>) then
+			false
+		else if(getPosicaoObstaculo(head(OBSTACULOS))>POSICAOATUAL and
+				getPosicaoObstaculo(head(OBSTACULOS))<=POSICAOPREVENDO and
+				getFaixaObstaculo(head(OBSTACULOS))==FAIXA) then
+			true
+		else
+			existeObstaculo(POSICAOATUAL,POSICAOPREVENDO,FAIXA,tail(OBSTACULOS))
+-------- / Getters Carro --------
+
+-------- Edits --------
+aumentarVelocidade((ID,VELOCIDADE,FAIXA,POSICAO)) = 
+	if(VELOCIDADE+1<=VELOCIDADE_MAXIMA and POSICAO+VELOCIDADE+1<=TAMANHO_PISTA) then
+		(ID,VELOCIDADE+1,FAIXA,POSICAO+VELOCIDADE+1)
+	else if(POSICAO+VELOCIDADE+1<=TAMANHO_PISTA) then
+		(ID,VELOCIDADE,FAIXA,POSICAO+VELOCIDADE)
+	else
+		(ID,VELOCIDADE,FAIXA,POSICAO)
+
+diminuirVelocidade((ID,VELOCIDADE,FAIXA,POSICAO)) = 
+	if(VELOCIDADE-1>=0 and POSICAO+VELOCIDADE-1<=TAMANHO_PISTA) then
+		(ID,VELOCIDADE-1,FAIXA,POSICAO+VELOCIDADE-1)
+	else if(POSICAO+VELOCIDADE-1<=TAMANHO_PISTA) then
+		(ID,VELOCIDADE,FAIXA,POSICAO+VELOCIDADE)
+	else
+		(ID,VELOCIDADE,FAIXA,POSICAO)
+
+manterVelocidade((ID,VELOCIDADE,FAIXA,POSICAO)) = 
+	if(POSICAO+VELOCIDADE<=TAMANHO_PISTA) then
+		(ID,VELOCIDADE,FAIXA,POSICAO+VELOCIDADE)
+	else
+		(ID,VELOCIDADE,FAIXA,POSICAO)
+
+mudarFaixa((ID,VELOCIDADE,FAIXA,POSICAO),FAIXA_NOVA) = 
+	if(VELOCIDADE-1>=0 and POSICAO+VELOCIDADE-1<=TAMANHO_PISTA) then
+		(ID,VELOCIDADE-1,FAIXA_NOVA,POSICAO+VELOCIDADE-1)
+	else if(POSICAO+VELOCIDADE-1<=TAMANHO_PISTA) then
+		(ID,VELOCIDADE,FAIXA,POSICAO+VELOCIDADE)
+	else
+		(ID,VELOCIDADE,FAIXA_NOVA,POSICAO)		
+
+acelerarCarro(CARROS, carro) = 
+	if (CARROS == <>) then
+		<>
+	else if (getId(head(CARROS)) == carro) then
+		<aumentarVelocidade(head(CARROS))> ^ tail(CARROS)
+	else
+		<head(CARROS)> ^ acelerarCarro(tail(CARROS), carro)
+
+freiarCarro(CARROS, carro) = 
+	if (CARROS == <>) then
+		<>
+	else if (getId(head(CARROS)) == carro) then
+		<diminuirVelocidade(head(CARROS))> ^ tail(CARROS)
+	else
+		<head(CARROS)> ^ freiarCarro(tail(CARROS), carro)
+
+manterCarro(CARROS, carro) = 
+	if (CARROS == <>) then
+		<>
+	else if (getId(head(CARROS)) == carro) then
+		<manterVelocidade(head(CARROS))> ^ tail(CARROS)
+	else
+		<head(CARROS)> ^ manterCarro(tail(CARROS), carro)
+
+mudarfaixaCarro(CARROS,carro,faixa) = 
+	if (CARROS == <>) then
+		<>
+	else if (getId(head(CARROS)) == carro) then
+		<mudarFaixa(head(CARROS),faixa)> ^ tail(CARROS)
+	else
+		<head(CARROS)> ^ mudarfaixaCarro(tail(CARROS),carro,faixa)
+
+removerCarro(CARROS,carro) = 
+	if (CARROS == <>) then
+		<>
+	else if (getId(head(CARROS)) == carro) then
+		tail(CARROS)
+	else
+		<head(CARROS)> ^ removerCarro(tail(CARROS),carro)
+-------- / Edits --------
+
+
+-------- Carro --------
+mudarFaixaVelocidade((ID,VELOCIDADE,FAIXA,POSICAO)) =
+	(
+		if(FAIXA<COUNT_FAIXAS and FAIXA>1) then
+			consultar!FAIXA+1!POSICAO+VELOCIDADE-1?ID_LADOD -> 
+			consultar!FAIXA-1!POSICAO+VELOCIDADE-1?ID_LADOE ->
+			(
+				if(FAIXA+1!=COUNT_FAIXAS and ID_LADOD==0) then
+					mudarfaixa!ID!FAIXA+1 ->
+					carro((ID,VELOCIDADE-1,FAIXA+1,POSICAO+VELOCIDADE-1))
+				else if(ID_LADOE==0) then
+					mudarfaixa!ID!FAIXA-1 ->
+					carro((ID,VELOCIDADE-1,FAIXA-1,POSICAO+VELOCIDADE-1))
+				else if(ID_LADOD==0) then
+					mudarfaixa!ID!FAIXA+1 ->
+					carro((ID,VELOCIDADE-1,FAIXA+1,POSICAO+VELOCIDADE-1))
+				else
+					freiar!ID ->
+					carro((ID, VELOCIDADE-1, FAIXA, POSICAO+VELOCIDADE-1))    
+			)
+		else if(FAIXA<COUNT_FAIXAS) then
+			consultar!FAIXA+1!POSICAO+VELOCIDADE-1?ID_LADOD ->
+			(
+				if(ID_LADOD==0) then
+					mudarfaixa!ID!FAIXA+1 ->
+					carro((ID,VELOCIDADE-1,FAIXA+1,POSICAO+VELOCIDADE-1))
+				else
+					freiar!ID ->
+					carro((ID, VELOCIDADE-1, FAIXA, POSICAO+VELOCIDADE-1))
+			)
+		else if(FAIXA>1) then
+			consultar!FAIXA-1!POSICAO+VELOCIDADE-1?ID_LADOE ->
+			(
+				if(ID_LADOE==0) then
+					mudarfaixa!ID!FAIXA-1 ->
+					carro((ID,VELOCIDADE-1,FAIXA-1,POSICAO+VELOCIDADE-1))
+				else
+					freiar!ID ->
+					carro((ID, VELOCIDADE-1, FAIXA, POSICAO+VELOCIDADE-1))
+			)
+		else
+			freiar!ID ->
+			carro((ID, VELOCIDADE-1, FAIXA, POSICAO+VELOCIDADE-1))
+	)
+
+carros = ||| id : {1..COUNT_CARROS} @ carro((id,0,id,1))
+carro((ID,VELOCIDADE,FAIXA,POSICAO))  =
+ andar!ID!VELOCIDADE!POSICAO!FAIXA -> (
+			if(POSICAO<TAMANHO_PISTA) then
+				if(existeObstaculo(POSICAO,POSICAO+VELOCIDADE+1,FAIXA,OBSTACULOS) and VELOCIDADE>0) then
+					mudarFaixaVelocidade((ID,VELOCIDADE,FAIXA,POSICAO))
+				else (
+					consultar!FAIXA!POSICAO+VELOCIDADE+1?ID_FRENTE -> (
+						if(ID_FRENTE==0) then (
+							if(VELOCIDADE<VELOCIDADE_MAXIMA) then
+								acelerar!ID ->
+								carro((ID, VELOCIDADE+1, FAIXA, POSICAO+VELOCIDADE+1))
+							else 
+								manter!ID ->
+								carro((ID, VELOCIDADE, FAIXA, POSICAO+VELOCIDADE))
+						) else if(VELOCIDADE>0) then (
+							mudarFaixaVelocidade((ID,VELOCIDADE,FAIXA,POSICAO))	
+						) else
+							acelerar!ID ->
+							carro((ID,VELOCIDADE+1,FAIXA,POSICAO+VELOCIDADE+1))
+					)			
+				)
+			else
+				ganhou!ID -> STOP
+			)
+-------- / Carro --------
+
+-------- Partida --------
+CRIAR_CARROS() = < (id,0,id,1) | id <-<1..COUNT_CARROS> >
+
+
+
+MONITOR(CARROS) = #CARROS>0 & (
+		acelerar?ID:set(< id | (id,_,_,_) <- CARROS >) 
+			-> MONITOR(acelerarCarro(CARROS,ID))
+		[]
+		freiar?ID:set(< id | (id,_,_,_) <- CARROS >)  
+			-> MONITOR(freiarCarro(CARROS,ID))
+		[]
+		manter?ID:set(< id | (id,_,_,_) <- CARROS >) 
+			-> MONITOR(manterCarro(CARROS,ID))
+		[]
+		mudarfaixa?ID:set(< id | (id,_,_,_) <- CARROS >) ?FAIXA 
+			-> MONITOR(mudarfaixaCarro(CARROS,ID,FAIXA))
+		[]
+		consultar?FAIXA?POSICAO!getIdCarros(FAIXA,POSICAO,CARROS) -> MONITOR(CARROS)
+		[]
+		ganhou?ID:set(< id | (id,_,_,_) <- CARROS >)  
+			-> MONITOR(removerCarro(CARROS,ID))
+	)
+
+-------- / Partida --------
+
+INICIAR = carros [|{|acelerar,freiar,mudarfaixa,consultar,ganhou,manter|}|] MONITOR(CRIAR_CARROS())
+
+
+assert INICIAR :[deadlock free]
+assert INICIAR :[livelock free]
+assert INICIAR :[deterministic]
+
+assert MONITOR(CRIAR_CARROS()) :[deadlock free]
+assert carros :[deadlock free]
+
+assert INICIAR \ diff(Events,{ganhou.1}) [F= ganhou.1->STOP
+assert INICIAR \ diff(Events,{ganhou.2}) [F= ganhou.2->STOP
+assert INICIAR \ diff(Events,{ganhou.3}) [F= ganhou.3->STOP
